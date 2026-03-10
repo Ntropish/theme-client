@@ -2,6 +2,7 @@ export interface ThemePalette {
   surface: string;
   surfaceRaised: string;
   surfaceSunken: string;
+  surfaceHovered: string;
   onSurface: string;
   onSurfaceMuted: string;
   onPrimary: string;
