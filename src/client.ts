@@ -96,17 +96,22 @@ export class ThemeClient {
   }
 
   private applyPalette(palette: ThemePalette): void {
-    // Clear previously applied vars
-    for (const varName of this.appliedVars) {
-      document.documentElement.style.removeProperty(varName);
-    }
-    this.appliedVars = [];
+    const newVars = new Set<string>();
 
     for (const [key, value] of Object.entries(palette)) {
       const varName = `--${toKebabCase(key)}`;
       const cssValue = key === 'shadowColor' ? hexAlphaToHsla(value) : value;
       document.documentElement.style.setProperty(varName, cssValue);
-      this.appliedVars.push(varName);
+      newVars.add(varName);
     }
+
+    // Only remove vars that were in old set but not new set
+    for (const varName of this.appliedVars) {
+      if (!newVars.has(varName)) {
+        document.documentElement.style.removeProperty(varName);
+      }
+    }
+
+    this.appliedVars = [...newVars];
   }
 }
