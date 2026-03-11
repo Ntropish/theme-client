@@ -51,21 +51,26 @@ export class ThemeClient {
       // Ignore corrupt/missing cache
     }
 
-    const token = await this.options.getAccessToken();
-    const res = await fetch(`${this.options.authCoreUrl}/api/themes/active`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (!res.ok) {
-      throw new Error(`Failed to fetch theme: ${res.status} ${res.statusText}`);
-    }
-    const data = await res.json();
-    this.theme = data.theme as Theme;
-
-    // Cache the fetched theme
     try {
-      localStorage.setItem(CACHE_KEY, JSON.stringify({ light: this.theme.light, dark: this.theme.dark }));
+      const token = await this.options.getAccessToken();
+      const res = await fetch(`${this.options.authCoreUrl}/api/themes/active`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        throw new Error(`Failed to fetch theme: ${res.status} ${res.statusText}`);
+      }
+      const data = await res.json();
+      this.theme = data.theme as Theme;
+
+      // Cache the fetched theme
+      try {
+        localStorage.setItem(CACHE_KEY, JSON.stringify({ light: this.theme.light, dark: this.theme.dark }));
+      } catch {
+        // Ignore storage errors (quota exceeded, etc.)
+      }
     } catch {
-      // Ignore storage errors (quota exceeded, etc.)
+      // If fetch fails (no token, network error), keep the cached theme already applied above
+      return;
     }
 
     if (!this.mediaQuery) {
@@ -74,6 +79,10 @@ export class ThemeClient {
     const palette = this.mediaQuery.matches ? this.theme.dark : this.theme.light;
     this.applyPalette(palette);
 
+    // Clean up previous listener before adding a new one
+    if (this.listener) {
+      this.mediaQuery.removeEventListener('change', this.listener);
+    }
     this.listener = (e: MediaQueryListEvent) => {
       if (!this.theme) return;
       const p = e.matches ? this.theme.dark : this.theme.light;
