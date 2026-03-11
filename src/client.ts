@@ -60,12 +60,18 @@ export class ThemeClient {
     }
     const data = await res.json();
     this.theme = data.theme as Theme;
+    console.log('[theme-client] fetched theme:', this.theme ? 'exists' : 'null', 'keys:', this.theme ? Object.keys(this.theme) : 'n/a');
 
     // Cache the fetched theme
     try {
-      localStorage.setItem(CACHE_KEY, JSON.stringify({ light: this.theme.light, dark: this.theme.dark }));
-    } catch {
-      // Ignore storage errors (quota exceeded, etc.)
+      const cacheData = { light: this.theme.light, dark: this.theme.dark };
+      console.log('[theme-client] caching theme, light exists:', !!cacheData.light, 'dark exists:', !!cacheData.dark);
+      const serialized = JSON.stringify(cacheData);
+      console.log('[theme-client] serialized length:', serialized.length);
+      localStorage.setItem(CACHE_KEY, serialized);
+      console.log('[theme-client] cache written successfully');
+    } catch (e) {
+      console.error('[theme-client] cache write failed:', e);
     }
 
     if (!this.mediaQuery) {
