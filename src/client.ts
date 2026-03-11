@@ -24,6 +24,8 @@ function hexAlphaToHsla(value: string): string {
   return `hsla(${Math.round(h * 360)}, ${Math.round(s * 100)}%, ${Math.round(l * 100)}%, ${alpha})`;
 }
 
+const CACHE_KEY = 'trivorn-theme-cache';
+
 export class ThemeClient {
   private options: ThemeClientOptions;
   private theme: Theme | null = null;
@@ -36,6 +38,19 @@ export class ThemeClient {
   }
 
   async apply(): Promise<void> {
+    // Apply cached theme immediately before network fetch
+    try {
+      const cached = localStorage.getItem(CACHE_KEY);
+      if (cached) {
+        const { light, dark } = JSON.parse(cached) as { light: ThemePalette; dark: ThemePalette };
+        this.mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+        const palette = this.mediaQuery.matches ? dark : light;
+        this.applyPalette(palette);
+      }
+    } catch {
+      // Ignore corrupt/missing cache
+    }
+
     const token = await this.options.getAccessToken();
     const res = await fetch(`${this.options.authCoreUrl}/api/themes/active`, {
       headers: { Authorization: `Bearer ${token}` },
@@ -46,7 +61,16 @@ export class ThemeClient {
     const data = await res.json();
     this.theme = data.theme as Theme;
 
-    this.mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    // Cache the fetched theme
+    try {
+      localStorage.setItem(CACHE_KEY, JSON.stringify({ light: this.theme.light, dark: this.theme.dark }));
+    } catch {
+      // Ignore storage errors (quota exceeded, etc.)
+    }
+
+    if (!this.mediaQuery) {
+      this.mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    }
     const palette = this.mediaQuery.matches ? this.theme.dark : this.theme.light;
     this.applyPalette(palette);
 
