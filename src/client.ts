@@ -1,4 +1,4 @@
-import type { Theme, ThemeClientOptions, ThemePalette } from './types';
+import type { Preferences, Theme, ThemeClientOptions, ThemePalette } from './types';
 
 function toKebabCase(str: string): string {
   return str.replace(/[A-Z]/g, m => `-${m.toLowerCase()}`);
@@ -25,16 +25,26 @@ function hexAlphaToHsla(value: string): string {
 }
 
 const CACHE_KEY = 'trivorn-theme-cache';
+const PROFILE_KEY = 'trivorn_profile_id';
 
 export class ThemeClient {
   private options: ThemeClientOptions;
   private theme: Theme | null = null;
+  private preferences: Preferences | null = null;
   private mediaQuery: MediaQueryList | null = null;
   private listener: ((e: MediaQueryListEvent) => void) | null = null;
   private appliedVars: string[] = [];
 
   constructor(options: ThemeClientOptions) {
     this.options = options;
+    // If profileId provided in options, persist it to localStorage
+    if (options.profileId) {
+      try {
+        localStorage.setItem(PROFILE_KEY, options.profileId);
+      } catch {
+        // Ignore storage errors
+      }
+    }
   }
 
   async apply(): Promise<void> {
@@ -53,14 +63,19 @@ export class ThemeClient {
 
     try {
       const token = await this.options.getAccessToken();
-      const res = await fetch(`${this.options.authCoreUrl}/api/themes/active`, {
+      const profileId = this.getProfileId();
+      const url = profileId
+        ? `${this.options.authCoreUrl}/api/preferences?profile_id=${encodeURIComponent(profileId)}`
+        : `${this.options.authCoreUrl}/api/preferences`;
+      const res = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) {
-        throw new Error(`Failed to fetch theme: ${res.status} ${res.statusText}`);
+        throw new Error(`Failed to fetch preferences: ${res.status} ${res.statusText}`);
       }
-      const data = await res.json();
-      this.theme = data.theme as Theme;
+      const data = await res.json() as Preferences;
+      this.preferences = data;
+      this.theme = data.theme;
 
       // Cache the fetched theme
       try {
@@ -91,6 +106,27 @@ export class ThemeClient {
     this.mediaQuery.addEventListener('change', this.listener);
   }
 
+  async setProfile(profileId: string): Promise<void> {
+    try {
+      localStorage.setItem(PROFILE_KEY, profileId);
+    } catch {
+      // Ignore storage errors
+    }
+    await this.apply();
+  }
+
+  getProfileId(): string | null {
+    try {
+      return this.options.profileId ?? localStorage.getItem(PROFILE_KEY);
+    } catch {
+      return this.options.profileId ?? null;
+    }
+  }
+
+  getPreferences(): Preferences | null {
+    return this.preferences;
+  }
+
   destroy(): void {
     if (this.mediaQuery && this.listener) {
       this.mediaQuery.removeEventListener('change', this.listener);
@@ -102,6 +138,7 @@ export class ThemeClient {
     }
     this.appliedVars = [];
     this.theme = null;
+    this.preferences = null;
   }
 
   private applyPalette(palette: ThemePalette): void {

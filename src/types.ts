@@ -23,7 +23,16 @@ export interface Theme {
   dark: ThemePalette;
 }
 
+export interface Preferences {
+  profile_id: string;
+  name: string;
+  theme_id: string;
+  nav_position: string;
+  theme: Theme;
+}
+
 export interface ThemeClientOptions {
   authCoreUrl: string;
   getAccessToken: () => string | Promise<string>;
+  profileId?: string;
 }
