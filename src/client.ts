@@ -5,7 +5,9 @@ function toKebabCase(str: string): string {
 }
 
 function hexAlphaToHsla(value: string): string {
-  const [hex, alpha] = value.split(':');
+  const parts = value.split(':');
+  const hex = parts[0] ?? '#000000';
+  const alpha = parts[1] ?? '1';
   const r = parseInt(hex.slice(1, 3), 16) / 255;
   const g = parseInt(hex.slice(3, 5), 16) / 255;
   const b = parseInt(hex.slice(5, 7), 16) / 255;
