@@ -6,5 +6,9 @@
   "types": "src/index.ts",
   "exports": {
     ".": "./src/index.ts"
-  }
+  },
+  "files": [
+    "src",
+    "package.json"
+  ]
 }
