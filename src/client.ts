@@ -36,6 +36,7 @@ export class ThemeClient {
   private mediaQuery: MediaQueryList | null = null;
   private listener: ((e: MediaQueryListEvent) => void) | null = null;
   private appliedVars: string[] = [];
+  private subscribers: Set<(prefs: Preferences | null) => void> = new Set();
 
   constructor(options: ThemeClientOptions) {
     this.options = options;
@@ -78,6 +79,7 @@ export class ThemeClient {
       const data = await res.json() as Preferences;
       this.preferences = data;
       this.theme = data.theme;
+      this.notify();
 
       // Cache the fetched theme
       try {
@@ -129,6 +131,31 @@ export class ThemeClient {
     return this.preferences;
   }
 
+  /**
+   * Subscribe to preference changes. Fires when apply() or setProfile() updates
+   * the cached Preferences. Returns an unsubscribe function.
+   *
+   * Follows the useSyncExternalStore contract: does not invoke the callback
+   * with the current value — consumers should read getPreferences() for the
+   * initial snapshot.
+   */
+  subscribe(fn: (prefs: Preferences | null) => void): () => void {
+    this.subscribers.add(fn);
+    return () => {
+      this.subscribers.delete(fn);
+    };
+  }
+
+  private notify(): void {
+    for (const fn of this.subscribers) {
+      try {
+        fn(this.preferences);
+      } catch {
+        // Swallow subscriber errors; one bad listener shouldn't break others.
+      }
+    }
+  }
+
   destroy(): void {
     if (this.mediaQuery && this.listener) {
       this.mediaQuery.removeEventListener('change', this.listener);
@@ -141,6 +168,8 @@ export class ThemeClient {
     this.appliedVars = [];
     this.theme = null;
     this.preferences = null;
+    this.notify();
+    this.subscribers.clear();
   }
 
   private applyPalette(palette: ThemePalette): void {
