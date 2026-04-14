@@ -70,8 +70,16 @@ export class ThemeClient {
       const url = profileId
         ? `${this.options.authCoreUrl}/api/preferences?profile_id=${encodeURIComponent(profileId)}`
         : `${this.options.authCoreUrl}/api/preferences`;
+      // Empty token means "rely on ambient credentials" (e.g. same-origin
+      // cookies from a co-located dashboard). Omit the header instead of
+      // sending `Bearer ` which would force the server onto the Bearer
+      // branch and fail.
+      const headers: Record<string, string> = token
+        ? { Authorization: `Bearer ${token}` }
+        : {};
       const res = await fetch(url, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers,
+        credentials: this.options.credentials,
       });
       if (!res.ok) {
         throw new Error(`Failed to fetch preferences: ${res.status} ${res.statusText}`);

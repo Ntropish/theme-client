@@ -35,4 +35,10 @@ export interface ThemeClientOptions {
   authCoreUrl: string;
   getAccessToken: () => string | Promise<string>;
   profileId?: string;
+  /**
+   * Request credentials mode for the preferences fetch. Defaults to the
+   * browser's fetch default ("same-origin"). Set to "include" for
+   * cross-origin cookie auth; leave undefined when using Bearer tokens.
+   */
+  credentials?: RequestCredentials;
 }
